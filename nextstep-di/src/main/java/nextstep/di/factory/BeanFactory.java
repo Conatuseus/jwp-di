@@ -2,11 +2,11 @@ package nextstep.di.factory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import nextstep.stereotype.Controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Map;
@@ -31,13 +31,14 @@ public class BeanFactory {
         return (T) beans.get(requiredType);
     }
 
-    public Map<Class<?>, Object> getControllers() {
-        return preInstanticateBeans.stream().filter(this::isAnnotationPresent)
-            .collect(Collectors.toMap(clazz -> clazz, clazz -> beans.get(clazz)));
+    public Map<Class<?>, Object> getBeansOf(final Class<? extends Annotation> annotation) {
+        return beans.entrySet().stream()
+            .filter(entry -> isClassAnnotationWith(entry.getKey(), annotation))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private boolean isAnnotationPresent(final Class<?> clazz) {
-        return clazz.isAnnotationPresent(Controller.class);
+    private boolean isClassAnnotationWith(final Class<?> clazz, final Class<? extends Annotation> annotation) {
+        return clazz.isAnnotationPresent(annotation);
     }
 
     public void initialize() {
@@ -68,7 +69,7 @@ public class BeanFactory {
     private Object registerBean(final Class<?> clazz) {
         Class<?> concreteClass = BeanFactoryUtils.findConcreteClass(clazz, preInstanticateBeans);
         Object bean = BeanUtils.instantiateClass(concreteClass);
-        beans.put(clazz, bean);
+        putBean(clazz, bean);
         return bean;
     }
 
@@ -80,7 +81,11 @@ public class BeanFactory {
         }
 
         Object bean = BeanUtils.instantiateClass(injectedConstructor, params.toArray());
-        beans.put(clazz, bean);
+        putBean(clazz, bean);
         return bean;
+    }
+
+    private Object putBean(final Class<?> clazz, final Object bean) {
+        return beans.put(clazz, bean);
     }
 }
